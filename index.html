@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>EA LAB by My Trader Hub</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { background: #181e27; color: #eaf0fa; font-family: Inter, Arial, sans-serif; min-height: 100vh; margin:0; display:flex; align-items:center; justify-content:center;}
+    .panel { background: #222b3c; border-radius: 16px; padding: 32px 28px; box-shadow:0 10px 30px rgba(42,111,242,.13); width: 400px; max-width: 96vw;}
+    textarea { width:100%; padding:12px; border-radius:10px; border:1px solid #1a2238; background:#18213a; color:#e6e9ef; font-size:1rem; margin-bottom:12px;}
+    button { width:100%; padding:12px; border-radius:10px; background:linear-gradient(90deg,#2a6ff2,#1ac8ff); border:none; font-weight:700; color:#07111f; font-size:1.08rem; cursor:pointer;}
+    .result { background: #13202c; border-radius: 10px; padding: 10px; margin-top: 12px; white-space: pre-line;}
+    h2 {margin: 0 0 10px 0; color: #1ac8ff; text-align: center;}
+    .branding {text-align:center; color:#9fb1c7; font-size:1em; margin-bottom:18px;}
+    label {font-size: .96em; color:#9fb1c7;}
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>EA LAB</h2>
+    <div class="branding">by My Trader Hub</div>
+    <label>Tu pregunta:</label>
+    <textarea id="prompt" rows="3" placeholder="Empieza a Crear tu Expert Advisor!"></textarea>
+    <button id="askBtn">Preguntar</button>
+    <div class="result" id="result"></div>
+  </div>
+  <script>
+    document.getElementById('askBtn').onclick = async () => {
+      const prompt = document.getElementById('prompt').value.trim();
+      const resultDiv = document.getElementById('result');
+      if(!prompt) {
+        resultDiv.textContent = "Por favor, escribe tu pregunta.";
+        return;
+      }
+      resultDiv.textContent = "Procesando...";
+      try {
+        const res = await fetch("http://localhost:3000/api/ea-lab", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        resultDiv.textContent = data.result || "Sin respuesta del modelo.";
+      } catch (err) {
+        resultDiv.textContent = "Error al conectar con EA LAB.";
+      }
+    };
+  </script>
+</body>
+</html>
