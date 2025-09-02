@@ -20,7 +20,7 @@
     <h2>EA LAB</h2>
     <div class="branding">by My Trader Hub</div>
     <label>Tu pregunta:</label>
-    <textarea id="prompt" rows="3" placeholder="Empieza a Crear tu Expert Advisor!"></textarea>
+    <textarea id="prompt" rows="3" placeholder="¿Sobre qué necesitas ayuda?"></textarea>
     <button id="askBtn">Preguntar</button>
     <div class="result" id="result"></div>
   </div>
@@ -34,7 +34,7 @@
       }
       resultDiv.textContent = "Procesando...";
       try {
-        const res = await fetch("http://localhost:3000/api/ea-lab", {
+        const res = await fetch("https://ea-mytraderhub-lat.onrender.com/api/ea-lab", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt })
