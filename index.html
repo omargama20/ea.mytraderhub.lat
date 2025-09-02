@@ -5,46 +5,124 @@
   <title>EA LAB by My Trader Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body { background: #181e27; color: #eaf0fa; font-family: Inter, Arial, sans-serif; min-height: 100vh; margin:0; display:flex; align-items:center; justify-content:center;}
-    .panel { background: #222b3c; border-radius: 16px; padding: 32px 28px; box-shadow:0 10px 30px rgba(42,111,242,.13); width: 400px; max-width: 96vw;}
-    textarea { width:100%; padding:12px; border-radius:10px; border:1px solid #1a2238; background:#18213a; color:#e6e9ef; font-size:1rem; margin-bottom:12px;}
-    button { width:100%; padding:12px; border-radius:10px; background:linear-gradient(90deg,#2a6ff2,#1ac8ff); border:none; font-weight:700; color:#07111f; font-size:1.08rem; cursor:pointer;}
-    .result { background: #13202c; border-radius: 10px; padding: 10px; margin-top: 12px; white-space: pre-line;}
-    h2 {margin: 0 0 10px 0; color: #1ac8ff; text-align: center;}
-    .branding {text-align:center; color:#9fb1c7; font-size:1em; margin-bottom:18px;}
-    label {font-size: .96em; color:#9fb1c7;}
+    :root{
+      --bg:#181e27; --card:#222b3c; --muted:#9fb1c7; --text:#eaf0fa;
+      --btn1:#2a6ff2; --btn2:#1ac8ff; --ink:#07111f; --result:#13202c;
+      --border:#1a2238;
+    }
+    *{box-sizing:border-box}
+    body{
+      background:var(--bg); color:var(--text); font-family:Inter, Arial, sans-serif;
+      min-height:100vh; margin:0; display:flex; align-items:center; justify-content:center; padding:16px;
+    }
+    .panel{
+      background:var(--card); border-radius:16px; padding:32px 28px;
+      box-shadow:0 10px 30px rgba(42,111,242,.13); width:400px; max-width:96vw;
+    }
+    h2{margin:0 0 10px 0; color:var(--btn2); text-align:center}
+    .branding{text-align:center; color:var(--muted); font-size:1em; margin-bottom:18px}
+    label{font-size:.96em; color:var(--muted); display:block; margin-bottom:6px}
+    textarea{
+      width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
+      background:#18213a; color:#e6e9ef; font-size:1rem; margin-bottom:12px; resize:vertical;
+    }
+    button{
+      width:100%; padding:12px; border-radius:10px; background:linear-gradient(90deg,var(--btn1),var(--btn2));
+      border:none; font-weight:700; color:var(--ink); font-size:1.08rem; cursor:pointer; transition:opacity .2s ease;
+    }
+    button[disabled]{opacity:.6; cursor:not-allowed}
+    .result{
+      background:var(--result); border-radius:10px; padding:12px; margin-top:12px;
+      white-space:pre-wrap; word-wrap:break-word; min-height:48px;
+    }
+    .hint{color:var(--muted); font-size:.85rem; margin-top:10px; text-align:center}
   </style>
 </head>
 <body>
   <div class="panel">
     <h2>EA LAB</h2>
     <div class="branding">by My Trader Hub</div>
-    <label>Tu pregunta:</label>
+
+    <label for="prompt">Tu pregunta:</label>
     <textarea id="prompt" rows="3" placeholder="¿Sobre qué necesitas ayuda?"></textarea>
+
     <button id="askBtn">Preguntar</button>
+
     <div class="result" id="result"></div>
+    <div class="hint">Conectado a API en Render mediante HTTPS</div>
   </div>
+
   <script>
-    document.getElementById('askBtn').onclick = async () => {
-      const prompt = document.getElementById('prompt').value.trim();
-      const resultDiv = document.getElementById('result');
-      if(!prompt) {
-        resultDiv.textContent = "Por favor, escribe tu pregunta.";
+    // URL ABSOLUTA de tu backend en Render (HTTPS):
+    const API_BASE = 'https://ea-mytraderhub-lat.onrender.com';
+
+    const askBtn   = document.getElementById('askBtn');
+    const promptEl = document.getElementById('prompt');
+    const resultEl = document.getElementById('result');
+
+    async function askEA() {
+      const prompt = (promptEl.value || '').trim();
+      if (!prompt) {
+        resultEl.textContent = 'Por favor, escribe tu pregunta.';
         return;
       }
-      resultDiv.textContent = "Procesando...";
+
+      // UX: bloquear botón y mostrar estado
+      askBtn.disabled = true;
+      const oldLabel = askBtn.textContent;
+      askBtn.textContent = 'Procesando...';
+      resultEl.textContent = 'Procesando...';
+
+      // Timeout de 20s para evitar cuelgues
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 20000);
+
       try {
-        const res = await fetch("https://ea-mytraderhub-lat.onrender.com/api/ea-lab", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt })
+        const res = await fetch(`${API_BASE}/api/ea-lab`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ prompt }),
+          mode: 'cors',
+          signal: controller.signal
         });
-        const data = await res.json();
-        resultDiv.textContent = data.result || "Sin respuesta del modelo.";
+
+        // Intentar JSON; si falla, leer texto
+        let data, raw;
+        try {
+          data = await res.json();
+        } catch {
+          raw = await res.text();
+        }
+
+        if (!res.ok) {
+          const msg = (data && (data.error || data.message)) || raw || 'Fallo al procesar la solicitud.';
+          resultEl.textContent = `Error ${res.status}: ${msg}`;
+          return;
+        }
+
+        const out = (data && (data.result ?? data.message)) || raw || 'Sin respuesta.';
+        resultEl.textContent = out;
       } catch (err) {
-        resultDiv.textContent = "Error al conectar con EA LAB.";
+        if (err.name === 'AbortError') {
+          resultEl.textContent = 'Tiempo de espera agotado. Intenta de nuevo.';
+        } else {
+          resultEl.textContent = 'Error al conectar con EA LAB.';
+        }
+      } finally {
+        clearTimeout(t);
+        askBtn.disabled = false;
+        askBtn.textContent = oldLabel;
       }
-    };
+    }
+
+    askBtn.addEventListener('click', askEA);
+    // Enviar con Ctrl/Cmd+Enter
+    promptEl.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') askEA();
+    });
   </script>
 </body>
 </html>
